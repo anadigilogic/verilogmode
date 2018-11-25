@@ -3,9 +3,10 @@ scriptencoding utf-8
 " s: local変数
 " vimのコマンドに登録
 command! -nargs=? GetVerilogPorts call s:GetVerilogPorts(<f-args>)
+command! -nargs=0 GetRadix call s:GetRadix()
 
 let s:_VERILOGMODE_VERSION = '0.0.1'
-lockvar s:_VERILOGMODE_VERSION
+"lockvar s:_VERILOGMODE_VERSION
 
 function! s:GetVerilogPorts(...)
     let l:sourcelist = []
@@ -110,3 +111,26 @@ function! s:GetPortList(_list)
     return l:instance
 
 endfunction
+
+"基数が不明な時、それぞれの基数での変換を表示
+function! s:GetRadix()
+    let l:reg = '[^ABCDEF0-9_]'
+    let l:word = expand('<cword>')
+    let l:num = substitute(l:word,l:reg,"","g")
+
+    let l:dec2hex = str2nr(l:num, 16)
+    let l:hex2dec = printf("%x",l:num)
+    let l:bin2dec = str2nr(l:num, 2)
+    let l:bin2hex = printf("%x",l:bin2dec)
+
+    let l:hex2bin = printf("%b",l:dec2hex)
+    let l:dec2bin = printf("%b",l:num)
+
+    let l:rad = l:word[0]
+
+    echo "'h " . l:num . " -> " ."'d " . l:dec2hex . " -> " . "'b " . l:hex2bin
+    echo "'d " . l:num . " -> " ."'h " . l:hex2dec . " -> " . "'b " . l:dec2bin
+    echo "'b " . l:num . " -> " ."'d " . l:bin2dec . " -> " . "'h " . l:bin2hex
+
+endfunction
+
