@@ -3,9 +3,9 @@ scriptencoding utf-8
 " s: local変数
 " vimのコマンドに登録
 command! -nargs=? GetVerilogPorts call s:GetVerilogPorts(<f-args>)
-command! -nargs=0 GetRadix call s:GetRadix()
+command! -nargs=0 GetRadix call s:GetRadix2()
 
-let s:_VERILOGMODE_VERSION = '0.0.1'
+let s:_VERILOGMODE_VERSION = '0.0.2'
 "lockvar s:_VERILOGMODE_VERSION
 
 function! s:GetVerilogPorts(...)
@@ -91,17 +91,36 @@ function! s:GetPortList(_list)
         return 0
     endif
 
+    " parameter部の正規表現
+    let l:param_pattern = 'parameter\s\+\(\w\+\)\s*=\s*\(\w*\)'
     " ポート宣言部の正規表現
-    let l:port_reg = '\(input\|output\|inout\)\s\+\(wire\|reg\)*\s*\(\[.*\]\)\s*\(\w*\),*'
+    let l:port_pattern = '\(input\|output\|inout\)\s*\(wire\|reg\|logic\)\?\s*\(\[.*\]\)\?\s*\(\w*\),*'
 
     " ポート宣言のみのリストを作成
-    let l:port_declaration = filter(copy(a:_list),"v:val =~ l:port_reg")
+    let l:port_declaration = filter(copy(a:_list),"v:val =~ l:port_pattern")
+    " parameter宣言のみのリストを作成
+    let l:param_declaration = filter(copy(a:_list),"v:val =~ l:param_pattern")
+    echo l:param_declaration
+
+    if(len(l:param_declaration) > 0)
+        " parameterの記述を作成
+        call add(l:instance, "#(")
+        
+        for param in l:param_declaration
+            let l:parammatchlist = matchlist(param, l:param_pattern)
+            let l:param = "." . l:parammatchlist[1] . "()," . "// " . l:parammatchlist[2]
+            call add(l:instance, l:param)
+        endfor
+
+        call add(l:instance, ")")
+    endif
 
     " インスタンスの記述を作成
-    call add(l:instance, s:serchfilename."(")
+    call add(l:instance, s:serchfilename)
+    call add(l:instance, "(")
 
     for dec in l:port_declaration
-        let l:portmatchlist = matchlist(dec, l:port_reg)
+        let l:portmatchlist = matchlist(dec, l:port_pattern)
         let l:port = "." . l:portmatchlist[4] . "()," . "//" . l:portmatchlist[1] . l:portmatchlist[3]
         call add(l:instance, l:port)
     endfor
@@ -112,10 +131,40 @@ function! s:GetPortList(_list)
 
 endfunction
 
+"基数変換
+function! s:GetRadix2()
+    let l:word = expand('<cWORD>')
+    let l:pattern = '\([0-9]*\)''\([bodhBODH]*\)\([A-F0-9_]\+\)'
+    
+    " 数値を取得
+    let l:num = matchlist(l:word,l:pattern)
+
+    echo l:num
+
+    if(l:num[2] == "h")
+        let l:substr = "'b" . s:Hex2Bin(l:num[3])
+        echo "'b" . s:Hex2Bin(l:num[3])
+    endif
+    if(l:num[2] == "b")
+        let l:substr = "'d" . s:Bin2Dec(l:num[3])
+        echo "'d" . s:Bin2Dec(l:num[3])
+    endif
+    if(l:num[2] == "d")
+        let l:substr = "'h" . s:Dec2Hex(l:num[3])
+        echo "'h" . s:Dec2Hex(l:num[3])
+    endif
+
+    let l:substr = l:num[1] . l:substr
+
+    echo l:substr
+
+endfunction
+
 "基数が不明な時、それぞれの基数での変換を表示
 function! s:GetRadix()
     let l:reg = '[^ABCDEF0-9_]'
-    let l:word = expand('<cword>')
+    let l:word = expand('<cWORD>')
+    echo l:word
     let l:num = substitute(l:word,l:reg,"","g")
 
     let l:dec2hex = str2nr(l:num, 16)
@@ -134,3 +183,14 @@ function! s:GetRadix()
 
 endfunction
 
+function! s:Bin2Dec(_num)
+    return str2nr(a:_num, 2)
+endfunction
+
+function! s:Hex2Bin(_num)
+    return printf("%b",str2nr(a:_num, 16))
+endfunction
+
+function! s:Dec2Hex(_num)
+    return printf("%X", a:_num)
+endfunction
