@@ -4,8 +4,9 @@ scriptencoding utf-8
 " vimのコマンドに登録
 command! -nargs=? GetVerilogPorts call s:GetVerilogPorts(<f-args>)
 command! -nargs=0 GetRadix call s:GetRadix2()
+command! -nargs=0 ShiftReg call s:ShiftReg()
 
-let s:_VERILOGMODE_VERSION = '0.0.2'
+let s:_VERILOGMODE_VERSION = '0.0.3'
 "lockvar s:_VERILOGMODE_VERSION
 
 function! s:GetVerilogPorts(...)
@@ -100,7 +101,6 @@ function! s:GetPortList(_list)
     let l:port_declaration = filter(copy(a:_list),"v:val =~ l:port_pattern")
     " parameter宣言のみのリストを作成
     let l:param_declaration = filter(copy(a:_list),"v:val =~ l:param_pattern")
-    echo l:param_declaration
 
     if(len(l:param_declaration) > 0)
         " parameterの記述を作成
@@ -193,4 +193,43 @@ endfunction
 
 function! s:Dec2Hex(_num)
     return printf("%X", a:_num)
+endfunction
+
+
+function! s:ShiftReg()
+    let l:save_cursor = getcurpos()
+    let l:declaration_pattern = '\s*\(wire\|reg\|logic\)\s*\(\[.*\]\)\?\s*'
+    let l:pattern = '\(\s*\)\(\w*\)\s*<=\s*\(\w*\)'
+    let l:strlist = matchlist(getline('.'),l:pattern)
+    let l:indent = l:strlist[1]
+    let l:left_str = l:strlist[2]
+    let l:right_str = l:strlist[3]
+    let l:bitlist_l = GetBitWidth(l:left_str)
+    let l:bitlist_r = GetBitWidth(l:right_str)
+
+    let l:msb_r = l:bitlist_r[0]
+    let l:lsb_r = l:bitlist_r[1]
+
+    let l:msb_l = l:bitlist_l[0] - l:msb_r - 1
+    let l:lsb_l = l:bitlist_l[1]
+
+
+    let l:str = l:indent . l:left_str . " <= { " . l:left_str . "[" . l:msb_l . ":" . l:lsb_l . "] , " . l:right_str . " };"
+    call setpos('.',l:save_cursor)
+    call append(l:save_cursor[1]-1, l:str)
+    call execute(":delete")
+
+endfunction
+
+function! GetBitWidth(str)
+    let l:dec_pattern = '\s*\(wire\|reg\|logic\)\s*\(\[.*\]\)\?\s*'
+    let l:dec_str = getline(searchpos(l:dec_pattern . a:str,'w')[0])
+    let l:declist = matchlist(l:dec_str,l:dec_pattern . '\(' .  a:str . '\)')
+    let l:bitwidth = matchlist(l:declist[2],'\[\(\w*\):\(\w*\)\]')
+    let l:msb = l:bitwidth[1]
+    let l:lsb = l:bitwidth[2]
+    let l:bitlist = []
+    call add(l:bitlist,l:msb)
+    call add(l:bitlist,l:lsb)
+    return l:bitlist
 endfunction
