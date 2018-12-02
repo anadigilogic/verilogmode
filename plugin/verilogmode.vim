@@ -3,8 +3,10 @@ scriptencoding utf-8
 " s: local変数
 " vimのコマンドに登録
 command! -nargs=? GetVerilogPorts call s:GetVerilogPorts(<f-args>)
-command! -nargs=0 GetRadix call s:GetRadix2()
+command! -nargs=0 GetRadix call s:GetRadix()
 command! -nargs=0 ShiftReg call s:ShiftReg()
+command! -nargs=0 ToggleNum call s:ToggleNum()
+
 
 let s:_VERILOGMODE_VERSION = '0.0.3'
 "lockvar s:_VERILOGMODE_VERSION
@@ -132,54 +134,120 @@ function! s:GetPortList(_list)
 endfunction
 
 "基数変換
-function! s:GetRadix2()
-    let l:word = expand('<cWORD>')
+function! s:ToggleNum()
+    let l:curpos = getcurpos()
+    let l:line = getline(l:curpos[1])
     let l:pattern = '\([0-9]*\)''\([bodhBODH]*\)\([A-F0-9_]\+\)'
-    
-    " 数値を取得
-    let l:num = matchlist(l:word,l:pattern)
 
-    echo l:num
+    " 行の中にある数値を取得
+    let l:list = s:GetMatchList(l:line,l:pattern)
 
+    if(len(l:list) == 0)
+        return
+    endif
+
+    " カーソル位置の数値を探す
+    for item in l:list
+        if((item[1] <= l:curpos[2]) && (item[2] >= l:curpos[2]))
+            let l:target = item
+        endif
+    endfor
+
+    " targetのサブマッチをとる
+    let l:num = matchlist(l:target,l:pattern)
+
+    " 基数を抜き出して変換する
+    let l:flag = 0
     if(l:num[2] == "h")
         let l:substr = "'b" . s:Hex2Bin(l:num[3])
-        echo "'b" . s:Hex2Bin(l:num[3])
+        let l:flag = 1
     endif
     if(l:num[2] == "b")
         let l:substr = "'d" . s:Bin2Dec(l:num[3])
-        echo "'d" . s:Bin2Dec(l:num[3])
+        let l:flag = 1
     endif
     if(l:num[2] == "d")
         let l:substr = "'h" . s:Dec2Hex(l:num[3])
-        echo "'h" . s:Dec2Hex(l:num[3])
+        let l:flag = 1
+    endif
+
+    if(l:flag == 0)
+        return
     endif
 
     let l:substr = l:num[1] . l:substr
-
     echo l:substr
+
+    let l:beforestr = ""
+    let l:afterstr = ""
+
+    if(l:target[1] != 0)
+        let l:beforestr = l:line[0:(l:target[1]-1)]
+    end
+    let l:afterstr = l:line[(l:target[2]):]
+    let l:substr = l:beforestr . l:substr . l:afterstr
+
+    execute ":delete"
+
+    call append(l:curpos[1]-1, l:substr)
+
+    call setpos('.',l:curpos)
+
+    unlet! l:beforestr
+    unlet! l:afterstr
+    unlet! l:substr
 
 endfunction
 
 "基数が不明な時、それぞれの基数での変換を表示
 function! s:GetRadix()
-    let l:reg = '[^ABCDEF0-9_]'
-    let l:word = expand('<cWORD>')
-    echo l:word
-    let l:num = substitute(l:word,l:reg,"","g")
 
-    let l:dec2hex = str2nr(l:num, 16)
-    let l:hex2dec = printf("%x",l:num)
-    let l:bin2dec = str2nr(l:num, 2)
-    let l:bin2hex = printf("%x",l:bin2dec)
+    let l:curpos = getcurpos()
+    let l:line = getline(l:curpos[1])
+    let l:pattern = '\([0-9]*\)''*\([bodhBODH]*\)\([A-F0-9_]\+\)'
 
-    let l:hex2bin = printf("%b",l:dec2hex)
-    let l:dec2bin = printf("%b",l:num)
+    " 行の中にある数値を取得
+    let l:list = s:GetMatchList(l:line,l:pattern)
 
-    let l:rad = l:word[0]
+    if(len(l:list) == 0)
+        return
+    endif
 
-    echo "'h " . l:num . " -> " ."'d " . l:dec2hex . " -> " . "'b " . l:hex2bin
-    echo "'d " . l:num . " -> " ."'h " . l:hex2dec . " -> " . "'b " . l:dec2bin
-    echo "'b " . l:num . " -> " ."'d " . l:bin2dec . " -> " . "'h " . l:bin2hex
+    " カーソル位置の数値を探す
+    for item in l:list
+        if((item[1] <= l:curpos[2]) && (item[2] >= l:curpos[2]))
+            let l:target = item
+        endif
+    endfor
+
+    " targetのサブマッチをとる
+    let l:num = matchlist(l:target,l:pattern)
+
+    " 基数を抜き出して変換する
+    let l:flag = 0
+    if(l:num[2] == "h")
+        let l:hex = l:num[3]
+        let l:dec = s:Hex2Dec(l:num[3])
+        let l:bin = s:Hex2Bin(l:num[3])
+    endif
+    if(l:num[2] == "b")
+        let l:hex = s:Bin2Hex(l:num[3])
+        let l:dec = s:Bin2Dec(l:num[3])
+        let l:bin = l:num[3]
+    endif
+    if(l:num[2] == "d")
+        let l:hex = s:Dec2Hex(l:num[3])
+        let l:dec = l:num[3]
+        let l:bin = s:Dec2Bin(l:num[3])
+    endif
+    if(l:num[2] == "")
+        let l:num = expand('<cword>')
+        let l:hex = s:Dec2Hex(l:num)
+        let l:dec = l:num
+        let l:bin = s:Dec2Bin(l:num)
+    endif
+
+    echo "'h" . l:hex ." : " . "'d" . l:dec . " : " . "'b" . l:bin
 
 endfunction
 
@@ -187,14 +255,25 @@ function! s:Bin2Dec(_num)
     return str2nr(a:_num, 2)
 endfunction
 
+function! s:Bin2Hex(_num)
+    return printf("%X",str2nr(a:_num,2))
+endfunction
+
 function! s:Hex2Bin(_num)
     return printf("%b",str2nr(a:_num, 16))
+endfunction
+
+function! s:Hex2Dec(_num)
+    return str2nr(a:_num, 16)
 endfunction
 
 function! s:Dec2Hex(_num)
     return printf("%X", a:_num)
 endfunction
 
+function! s:Dec2Bin(_num)
+    return printf("%b",a:_num)
+endfunction
 
 function! s:ShiftReg()
     let l:save_cursor = getcurpos()
@@ -232,4 +311,15 @@ function! GetBitWidth(str)
     call add(l:bitlist,l:msb)
     call add(l:bitlist,l:lsb)
     return l:bitlist
+endfunction
+
+function! s:GetMatchList(expr, pat, ...)
+    let l:matchstrlists = []
+    let l:result = matchstrpos(a:expr,a:pat)
+
+    while l:result[0] != ""
+        call add(l:matchstrlists,l:result)
+        let l:result = matchstrpos(a:expr,a:pat,l:result[2])
+    endwhile
+    return l:matchstrlists
 endfunction

@@ -29,27 +29,52 @@ Set variable as shift register.
 * Move cursor to non-blocking assignment
 * Call Ex command as :ShiftReg
 
-    example
-    ```verilog
-    reg[7:0]    left;
-    reg[1:0]    right;
+example
+``` verilog
+reg[7:0]    left;
+reg[1:0]    right;
 
-    always@(posedge CLK)begin
-        left <= right;
-    end
-    ```
+always@(posedge CLK)begin
+    left <= right;
+end
+```
 
-    Set cursor to non-blocking assignment rows and call Ex command
-    ```text
-    :ShiftReg
-    ```
+Set cursor to non-blocking assignment rows and call Ex command
+``` text
+:ShiftReg
+```
 
-    Then it will be changed as follows:
-    ```verilog
-    reg[7:0]    left;
-    reg[1:0]    right;
+Then it will be changed as follows:
+``` verilog
+reg[7:0]    left;
+reg[1:0]    right;
 
-    always@(posedge CLK)begin
-        left <= { left[5:0] , right };
-    end
-    ```
+always@(posedge CLK)begin
+    left <= { left[5:0] , right };
+end
+```
+### GetRadix
+
+Display numbers as follows
+example, when used on 'h1010,it is displayed as follows 
+``` text
+'h1010 : 'd4112 : 'b1000000010000
+```
+If there is no radix,it is recognized as a decimal number.
+When used on 1010,it is displayed as follows 
+``` text
+'hA : 'd1010 : 'b1111110010
+```
+
+
+### ToggleNum
+
+Switch in order of Bin -> Dec -> Hex -> Bin -> ...
+
+* Place the cursor on a numeric.
+* Call Ex command as :ToggleNum
+
+Toggle as shown below
+``` text
+4'b1010 -> 4'd10 -> 4'hA
+
