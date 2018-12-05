@@ -2,8 +2,16 @@
 
 ## Introduction
 
+Verilog-HDLを書く際に便利な機能を提供します。
+- ファイルからインスタンス宣言を取得
+- 基数変換 : Bin -> Dec -> Hex
+- ポート宣言からwireリストを取得
+
+
 This plugin is useful for writing Verilog-HDL.
-Retrieve the instance from the file.
+- Retrieve the instance from the file.
+- Radix conversion of numbers : Bin -> Dec -> Hex
+- Get wire list from port declatation
 
 ## How to use
 

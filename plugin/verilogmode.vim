@@ -3,13 +3,34 @@ scriptencoding utf-8
 " s: local変数
 " vimのコマンドに登録
 command! -nargs=? GetVerilogPorts call s:GetVerilogPorts(<f-args>)
+command! -nargs=? GetVerilogNets call s:GetVerilogNets(<f-args>)
 command! -nargs=0 GetRadix call s:GetRadix()
 command! -nargs=0 ShiftReg call s:ShiftReg()
 command! -nargs=0 ToggleNum call s:ToggleNum()
 
 
 let s:_VERILOGMODE_VERSION = '0.0.3'
-"lockvar s:_VERILOGMODE_VERSION
+
+function! s:GetVerilogNets(...)
+    let l:sourcelist = []
+    let l:no_comment_list = []
+    let l:nets = []
+
+    if(a:0 > 0)
+        let l:sourcelist = s:GetVerilogFilePath(a:1)
+    else
+        let l:sourcelist = s:GetVerilogFilePath("")
+    endif
+
+    if(len(l:sourcelist) > 0)
+        let l:no_comment_list = s:GetVerilogfile(l:sourcelist)
+    else
+        return
+    endif
+
+    let l:nets = s:GetWireList(l:no_comment_list)
+    call append(line('.') - 1, l:nets)
+endfunction
 
 function! s:GetVerilogPorts(...)
     let l:sourcelist = []
@@ -131,6 +152,59 @@ function! s:GetPortList(_list)
 
     return l:instance
 
+endfunction
+
+
+function! s:GetWireList(_list)
+
+    let l:bitwidth = []
+    let l:instance = []
+    let l:port_declaration = []
+    let l:portmatchlist = []
+    let l:port = ""
+
+    if(len(a:_list) == 0)
+        return 0
+    endif
+
+    " ポート宣言部の正規表現
+    let l:port_pattern = '\(input\|output\|inout\)\s*\(wire\|reg\|logic\)\?\s*\(\[.*\]\)\?\s*\(\w*\),*'
+    let l:bit_pattern = '.*\(\[.*\]\).*'
+
+    " ポート宣言のみのリストを作成
+    let l:port_declaration = filter(copy(a:_list),"v:val =~ l:port_pattern")
+
+    " wire宣言とビット幅を含めた宣言部の長さを取得
+    let l:maxlength = 0
+    for dec in l:port_declaration
+        let l:bitlist = matchlist(dec, l:bit_pattern)
+        if(len(l:bitlist) > 1 )
+            let l:maxlength = (l:maxlength > len(l:bitlist[1])) ? l:maxlength : len(l:bitlist[1])
+        endif
+    endfor
+
+
+    for dec in l:port_declaration
+        let l:portmatchlist = matchlist(dec, l:port_pattern)
+        let l:wire_dec = "wire" . l:portmatchlist[3]
+        let l:space_len = l:maxlength + 4 - len(l:wire_dec)
+        let l:port = "wire" . " " . l:portmatchlist[3] . s:Space(l:space_len) . l:portmatchlist[4] . ";"
+        call add(l:instance, l:port)
+    endfor
+
+    return l:instance
+
+endfunction
+
+function! s:Space(_length)
+    let l:i = 0
+    let l:space = ""
+    while l:i < a:_length + 1
+        let l:space .= " "
+        let l:i += 1
+    endwhile
+
+    return l:space
 endfunction
 
 "基数変換
@@ -322,4 +396,16 @@ function! s:GetMatchList(expr, pat, ...)
         let l:result = matchstrpos(a:expr,a:pat,l:result[2])
     endwhile
     return l:matchstrlists
+endfunction
+
+
+function! s:GetMaxLength(_list)
+    let l:maxlength = 0
+
+    for str in a:_list
+        let l:maxlength = (len(str) < l:maxlength) ? l:maxlength : len(str)
+    endfor
+
+    return l:maxlength
+
 endfunction
